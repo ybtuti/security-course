@@ -163,10 +163,8 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
         uint256 mintAmount = (amount * assetToken.EXCHANGE_RATE_PRECISION()) / exchangeRate;
         emit Deposit(msg.sender, token, amount);
         assetToken.mint(msg.sender, mintAmount);
-        // @audit follow-up, this seems sus
-        // q why are we calculating the fees of flash loans in th deposit?????
+        // @audit-high We shouldn't be updating the exchange rate
         uint256 calculatedFee = getCalculatedFee(token, amount);
-        // q why are we updating the exchange rate?????
         assetToken.updateExchangeRate(calculatedFee);
         // e when a liquidity provider deposits, the $ sits in the assetToken contract
         token.safeTransferFrom(msg.sender, address(assetToken), amount);
