@@ -99,7 +99,7 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
 
     // The fee in WEI, it should have 18 decimals. Each flash loan takes a flat fee of the token price.
     // @audit-info this shuld be constant or immutable
-    uint256 private s_feePrecision; // q why is this a storage variable?
+    uint256 private s_feePrecision; // @audit-info this should be  constant/immutable
     uint256 private s_flashLoanFee; // 0.3% ETH fee
 
     mapping(IERC20 token => bool currentlyFlashLoaning) private s_currentlyFlashLoaning; // e probably a mapping that
@@ -191,31 +191,34 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
         uint256 amountUnderlying = (amountOfAssetToken * exchangeRate) / assetToken.EXCHANGE_RATE_PRECISION();
         emit Redeemed(msg.sender, token, amountOfAssetToken, amountUnderlying);
         assetToken.burn(msg.sender, amountOfAssetToken);
-        // @follow up reentrancy
         assetToken.transferUnderlyingTo(msg.sender, amountUnderlying);
     }
 
+    // e no natspec!!!!
     function flashloan(
-        address receiverAddress,
-        IERC20 token,
-        uint256 amount,
-        bytes calldata params
+        address receiverAddress, // e the address to get the flash loaned tokens
+        IERC20 token, // e the ERC20 to borrow
+        uint256 amount, // e the amount to borrow
+        bytes calldata params // e the parameters to call the recieverAddress with
     )
         external
         revertIfZero(amount)
         revertIfNotAllowedToken(token)
     {
-        AssetToken assetToken = s_tokenToAssetToken[token];
+        AssetToken assetToken = s_tokenToAssetToken[token]; // e get this to get the inderlying
+        // e probably what we are going to use to check if the flashloan has been repaid
         uint256 startingBalance = IERC20(token).balanceOf(address(assetToken));
 
         if (amount > startingBalance) {
             revert ThunderLoan__NotEnoughTokenBalance(startingBalance, amount);
         }
 
+        // e making sure the recieverAddress is a smart contract
         if (receiverAddress.code.length == 0) {
             revert ThunderLoan__CallerIsNotContract();
         }
 
+        // e this is probably the fee of the flash loan!!!
         uint256 fee = getCalculatedFee(token, amount);
         // @audit-info messed up slither disables
         // slither-disable-next-line reentrancy-vulnerabilities-2 reentrancy-vulnerabilities-3
@@ -243,12 +246,15 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
         );
 
         uint256 endingBalance = token.balanceOf(address(assetToken));
+        // e ending balance >= starting balance + fee
         if (endingBalance < startingBalance + fee) {
             revert ThunderLoan__NotPaidBack(startingBalance + fee, endingBalance);
         }
         s_currentlyFlashLoaning[token] = false;
     }
 
+    // e this is what the contract expects people to repay using
+    // e users could just call transfer
     function repay(IERC20 token, uint256 amount) public {
         if (!s_currentlyFlashLoaning[token]) {
             revert ThunderLoan__NotCurrentlyFlashLoaning();
@@ -280,9 +286,17 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
     }
 
     // e where is the natspec??
-    // is this calculating the fees of the flash loans?
+    // qanswered is this calculating the fees of the flash loans?
+    // yes!
+    // q how is it calculating fee?
+    // @param amount the amount being borrowed
+    // @param token the token being borrowed
     function getCalculatedFee(IERC20 token, uint256 amount) public view returns (uint256 fee) {
         //slither-disable-next-line divide-before-multiply
+        // e so this is WHY we need Tswap
+        // q is his correct??
+
+        // @audit-high if the fee is going to be in the token then the value should reflect that
         uint256 valueOfBorrowedToken = (amount * getPriceInWeth(address(token))) / s_feePrecision;
         //slither-disable-next-line divide-before-multiply
         fee = (valueOfBorrowedToken * s_flashLoanFee) / s_feePrecision;

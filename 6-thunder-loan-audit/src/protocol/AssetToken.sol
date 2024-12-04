@@ -24,7 +24,8 @@ contract AssetToken is ERC20 {
     // e underlying == USDC
     // e assetToken == shares
     // e compound
-    // q what does this rate do?
+    // qanswered what does this rate do?
+    // It is the rate between the underlying and the asset token
     uint256 private s_exchangeRate;
     uint256 public constant EXCHANGE_RATE_PRECISION = 1e18;
     uint256 private constant STARTING_EXCHANGE_RATE = 1e18;
@@ -58,7 +59,8 @@ contract AssetToken is ERC20 {
         address thunderLoan,
         IERC20 underlying, // e token being deposited for flash loans
         // oh, are the erc20s stored in AssetToken.sol instead of thunderLoan?
-        // q where are the tokens stored?
+        // qanswered where are the tokens stored?
+        // a they are stored int he asset token contract
         string memory assetName,
         string memory assetSymbol
     )
@@ -82,9 +84,9 @@ contract AssetToken is ERC20 {
 
     function transferUnderlyingTo(address to, uint256 amount) external onlyThunderLoan {
         // wierd erc20?
-        // q what happens if USDC blacklists the thunderloan contract?
-        // q what happens if USDC blacklists the asset token contract?
-        // @follow up, wierd erc20s
+        // qanswered what happens if USDC blacklists the thunderloan contract?
+        // qanswered what happens if USDC blacklists the asset token contract?
+        // @audit-medium the protocol would be frozen and that would suck
         i_underlying.safeTransfer(to, amount);
     }
 
@@ -99,7 +101,6 @@ contract AssetToken is ERC20 {
         // newExchangeRate = 1 (4 + 0.5) / 4
         // newExchangeRate = 1.125
 
-        // q what if total supply is 0?
         // this breaks!! is that an issue?
         // @audit-gas, too many storage reads -> store as a memory variable
         uint256 newExchangeRate = (s_exchangeRate * (totalSupply() + fee)) / totalSupply();
