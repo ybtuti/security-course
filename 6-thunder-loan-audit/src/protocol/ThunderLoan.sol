@@ -253,6 +253,7 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
 
     // e this is what the contract expects people to repay using
     // e users could just call transfer
+    // @audit-low you can't use a flash loan inside another flash loan
     function repay(IERC20 token, uint256 amount) public {
         if (!s_currentlyFlashLoaning[token]) {
             revert ThunderLoan__NotCurrentlyFlashLoaning();
@@ -277,7 +278,7 @@ contract ThunderLoan is Initializable, OwnableUpgradeable, UUPSUpgradeable, Orac
             return assetToken;
         } else {
             AssetToken assetToken = s_tokenToAssetToken[token];
-            delete s_tokenToAssetToken[token]; // q does deleting a mapping work right?
+            delete s_tokenToAssetToken[token];
             emit AllowedTokenSet(token, assetToken, allowed);
             return assetToken;
         }
