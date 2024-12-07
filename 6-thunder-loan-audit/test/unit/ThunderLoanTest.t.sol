@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import { Test, console } from "forge-std/Test.sol";
+import { Test, console2 } from "forge-std/Test.sol";
 import { BaseTest, ThunderLoan } from "./BaseTest.t.sol";
 import { AssetToken } from "../../src/protocol/AssetToken.sol";
 import { MockFlashLoanReceiver } from "../mocks/MockFlashLoanReceiver.sol";
@@ -11,6 +11,7 @@ import { BuffMockPoolFactory } from "../mocks/BuffMockPoolFactory.sol";
 import { BuffMockTSwap } from "../mocks/BuffMockTSwap.sol";
 import { IFlashLoanReceiver } from "../../src/interfaces/IFlashLoanReceiver.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ThunderLoanUpgraded } from "src/upgradedProtocol/ThunderLoanUpgraded.sol";
 
 contract ThunderLoanTest is BaseTest {
     uint256 constant AMOUNT = 10e18;
@@ -137,7 +138,7 @@ contract ThunderLoanTest is BaseTest {
         vm.stopPrank();
 
         uint256 normalFeeCost = thunderLoan.getCalculatedFee(tokenA, 100e18);
-        console.log("Normal Fee is:", normalFeeCost);
+        console2.log("Normal Fee is:", normalFeeCost);
 
         // 4. Execute 2 Flash Loans
         uint256 amountToBorrow = 50e18;
@@ -152,7 +153,7 @@ contract ThunderLoanTest is BaseTest {
         vm.stopPrank();
 
         uint256 attackFee = flr.feeOne() + flr.feeTwo();
-        console.log("Attack Fee is:", attackFee);
+        console2.log("Attack Fee is:", attackFee);
         assert(attackFee < normalFeeCost);
     }
 
@@ -166,6 +167,19 @@ contract ThunderLoanTest is BaseTest {
         dor.redeemMoney();
         vm.stopPrank();
         assert(tokenA.balanceOf(address(dor)) > 50e18 + fee);
+    }
+
+    function testUpgradeBreaks() public {
+        uint256 feeBeforeUpgrade = thunderLoan.getFee();
+        vm.startPrank(thunderLoan.owner());
+        ThunderLoanUpgraded upgraded = new ThunderLoanUpgraded();
+        thunderLoan.upgradeToAndCall(address(upgraded), "");
+        uint256 feeafterUpgrade = thunderLoan.getFee();
+        vm.stopPrank();
+
+        console2.log("Fee before upgrade:", feeBeforeUpgrade);
+        console2.log("Fee after upgrade:", feeafterUpgrade);
+        assert(feeBeforeUpgrade != feeafterUpgrade);
     }
 }
 
